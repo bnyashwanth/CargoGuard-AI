@@ -6,7 +6,6 @@ model = pickle.load(open("risk_model.pkl", "rb"))
 
 shipment_distance_km = input("Enter total shipment distance in kilometers: ")
 route_risk_score = input("Enter route risk score (0 to 1): ")
-carrier_rating = input("Enter carrier rating (1 to 5): ")
 total_ports = input("Enter total number of ports involved: ")
 ports_crossed = input("Enter number of ports crossed: ")
 port_congestion = input("Enter port congestion level (0 to 1): ")
@@ -16,15 +15,14 @@ ship_type = input("Enter ship type: ")
 product_category = input("Enter product category: ")
 origin_port = input("Enter origin port: ")
 destination_port = input("Enter destination port: ")
-carrier_name = input("Enter carrier name: ")
 shipment_priority = input("Enter shipment priority level: ")
 
 inputs = [
-    shipment_distance_km, route_risk_score, carrier_rating,
+    shipment_distance_km, route_risk_score, 
     total_ports, ports_crossed, port_congestion,
     sea_traffic_index, weather_severity,
     ship_type, product_category, origin_port,
-    destination_port, carrier_name, shipment_priority
+    destination_port,  shipment_priority
 ]
 
 if "" in inputs:
@@ -34,7 +32,6 @@ else:
         values = [
             float(shipment_distance_km),
             float(route_risk_score),
-            float(carrier_rating),
             int(total_ports),
             int(ports_crossed),
             float(port_congestion),
@@ -44,14 +41,12 @@ else:
             product_category,
             origin_port,
             destination_port,
-            carrier_name,
             int(shipment_priority)
         ]
 
         u_input = {
             "shipment_distance_km": [values[0]],
             "route_risk_score": [values[1]],
-            "carrier_rating": [values[2]],
             "total_ports": [values[3]],
             "ports_crossed": [values[4]],
             "port_congestion": [values[5]],
@@ -61,7 +56,6 @@ else:
             "product_category": [values[9]],
             "origin_port": [values[10]],
             "destination_port": [values[11]],
-            "carrier_name": [values[12]],
             "shipment_priority": [values[13]]
         }
 

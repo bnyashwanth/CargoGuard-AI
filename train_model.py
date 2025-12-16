@@ -18,9 +18,7 @@ iso = IsolationForest(contamination=0.05, random_state=42)
 iso.fit(fea_scaled)
 
 scores = iso.decision_function(fea_scaled)
-df["anomaly_percent"] = (
-    1 - (scores - scores.min()) / (scores.max() - scores.min())
-) * 100
+df["anomaly_percent"] = (1 - (scores - scores.min()) / (scores.max() - scores.min())) * 100
 df["anomaly_percent"] = df["anomaly_percent"].round(2)
 
 num_att_model = [
@@ -56,7 +54,7 @@ pipeline = ColumnTransformer([
     ("cat", cat_pipe, cat_att_model)
 ])
 
-X = pipeline.fit_transform(df[num_att_model + cat_att_model])
+fea = pipeline.fit_transform(df[num_att_model + cat_att_model])
 y = df["anomaly_percent"]
 
 model = RandomForestRegressor(
@@ -64,7 +62,7 @@ model = RandomForestRegressor(
     random_state=42,
     n_jobs=-1
 )
-model.fit(X, y)
+model.fit(fea, y)
 
 with open("pipeline.pkl", "wb") as f:
     pickle.dump(pipeline, f)

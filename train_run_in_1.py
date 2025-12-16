@@ -39,7 +39,6 @@ df["anomaly_percent"] = anomaly_percent.round(2)
 num_att_model = [
     "shipment_distance_km",
     "route_risk_score",
-    "carrier_rating",
     "total_ports",
     "ports_crossed",
     "port_congestion",
@@ -52,7 +51,6 @@ cat_att_model = [
     "product_category",
     "origin_port",
     "destination_port",
-    "carrier_name",
     "shipment_priority"
 ]
 
@@ -89,7 +87,6 @@ model.fit(fea, target)
 user_input = {
     "shipment_distance_km": 6496,
     "route_risk_score": 0.66,
-    "carrier_rating": 4.5,
     "total_ports": 4,
     "ports_crossed": 3,
     "port_congestion": 0.59,
@@ -99,7 +96,6 @@ user_input = {
     "product_category": "Chemicals",
     "origin_port": "Tuticorin Port",
     "destination_port": "Chennai Port",
-    "carrier_name": "CMA CGM",
     "shipment_priority": 2
 }
 
