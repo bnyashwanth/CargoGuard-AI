@@ -4,7 +4,7 @@ import pickle
 import plotly.graph_objects as go
 
 st.set_page_config(
-    page_title="Maritime Risk AI",
+    page_title="CargiGuard-AI",
     page_icon="🚢",
     layout="wide",
     initial_sidebar_state="expanded"
