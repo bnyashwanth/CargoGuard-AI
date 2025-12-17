@@ -1,85 +1,115 @@
+import streamlit as st
 import pandas as pd
 import pickle
 
-pipeline = pickle.load(open("pipeline.pkl", "rb"))
-model = pickle.load(open("risk_model.pkl", "rb"))
+# --- 1. CONFIGURATION (Must be the first command) ---
+st.set_page_config(
+    page_title="Maritime Risk Predictor",
+    page_icon="🚢",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
-shipment_distance_km = input("Enter total shipment distance in kilometers: ")
-route_risk_score = input("Enter route risk score (0 to 1): ")
-total_ports = input("Enter total number of ports involved: ")
-ports_crossed = input("Enter number of ports crossed: ")
-port_congestion = input("Enter port congestion level (0 to 1): ")
-sea_traffic_index = input("Enter sea traffic index (0 to 1): ")
-weather_severity = input("Enter weather severity level: ")
-ship_type = input("Enter ship type: ")
-product_category = input("Enter product category: ")
-origin_port = input("Enter origin port: ")
-destination_port = input("Enter destination port: ")
-shipment_priority = input("Enter shipment priority level: ")
+# --- 2. LOAD MODEL ---
+@st.cache_resource
+def load_components():
+    with open("pipeline.pkl", "rb") as f:
+        pipeline = pickle.load(f)
+    with open("risk_model.pkl", "rb") as f:
+        model = pickle.load(f)
+    return pipeline, model
 
-inputs = [
-    shipment_distance_km, route_risk_score, 
-    total_ports, ports_crossed, port_congestion,
-    sea_traffic_index, weather_severity,
-    ship_type, product_category, origin_port,
-    destination_port,  shipment_priority
-]
+try:
+    pipeline, model = load_components()
+except FileNotFoundError:
+    st.error("Error: .pkl files not found. Run train_model.py first.")
+    st.stop()
 
-if "" in inputs:
-    print("Error: Please fill ALL the fields. No field should be empty.")
-else:
+# --- 3. UI LAYOUT ---
+st.title("🚢 Maritime Shipment Risk Predictor")
+st.markdown("### Enter shipment details to predict anomaly risk")
+
+with st.form("prediction_form"):
+    st.write("#### 📋 Shipment Information")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        # Numeric Inputs
+        shipment_distance_km = st.number_input("Distance (km)", min_value=0.0, step=10.0)
+        route_risk_score = st.slider("Route Risk Score", 0.0, 1.0, step=0.01)
+        total_ports = st.number_input("Total Ports", min_value=1, step=1)
+        ports_crossed = st.number_input("Ports Crossed", min_value=0, step=1)
+        port_congestion = st.slider("Port Congestion Level", 0.0, 1.0, step=0.01)
+
+    with col2:
+        sea_traffic_index = st.slider("Sea Traffic Index", 0.0, 1.0, step=0.01)
+        weather_severity = st.slider("Weather Severity (1-5)", 1, 5, step=1)
+        shipment_priority = st.selectbox("Shipment Priority", [1, 2, 3], help="1=Low, 3=High")
+
+    st.write("#### 📦 Categorical Details")
+    col3, col4 = st.columns(2)
+
+    with col3:
+        # DROPDOWNS: Replace these lists with your actual CSV data
+        ship_type = st.selectbox(
+            "Ship Type", 
+            ["Container Ship", "Bulk Carrier", "Tanker", "Ro-Ro", "General Cargo"]
+        )
+        
+        product_category = st.selectbox(
+            "Product Category", 
+            ["Electronics", "Machinery", "Textiles", "Chemicals", "Food", "Automotive"]
+        )
+
+    with col4:
+        origin_port = st.selectbox(
+            "Origin Port", 
+            ["Shanghai", "Singapore", "Ningbo", "Busan", "Rotterdam", "Mumbai"]
+        )
+        
+        destination_port = st.selectbox(
+            "Destination Port", 
+            ["Rotterdam", "Antwerp", "Los Angeles", "Hamburg", "New York", "Chennai"]
+        )
+
+    # Submit Button
+    submit_btn = st.form_submit_button("🚀 Analyze Risk")
+
+# --- 4. PREDICTION LOGIC ---
+if submit_btn:
+    # Prepare input dict
+    u_input = {
+        "shipment_distance_km": [shipment_distance_km],
+        "route_risk_score": [route_risk_score],
+        "total_ports": [total_ports],
+        "ports_crossed": [ports_crossed],
+        "port_congestion": [port_congestion],
+        "sea_traffic_index": [sea_traffic_index],
+        "weather_severity": [weather_severity],
+        "ship_type": [ship_type],
+        "product_category": [product_category],
+        "origin_port": [origin_port],
+        "destination_port": [destination_port],
+        "shipment_priority": [shipment_priority]
+    }
+
+    user_df = pd.DataFrame(u_input)
+
     try:
-        values = [
-            float(shipment_distance_km),
-            float(route_risk_score),
-            int(total_ports),
-            int(ports_crossed),
-            float(port_congestion),
-            float(sea_traffic_index),
-            int(weather_severity),
-            ship_type,
-            product_category,
-            origin_port,
-            destination_port,
-            int(shipment_priority)
-        ]
-
-        u_input = {
-            "shipment_distance_km": [values[0]],
-            "route_risk_score": [values[1]],
-            "total_ports": [values[3]],
-            "ports_crossed": [values[4]],
-            "port_congestion": [values[5]],
-            "sea_traffic_index": [values[6]],
-            "weather_severity": [values[7]],
-            "ship_type": [values[8]],
-            "product_category": [values[9]],
-            "origin_port": [values[10]],
-            "destination_port": [values[11]],
-            "shipment_priority": [values[13]]
-        }
-
-        user_df = pd.DataFrame(u_input)
         user_fea = pipeline.transform(user_df)
         pred = model.predict(user_fea)[0]
+        risk_score = round(pred, 2)
 
-        print(f"Risk Percentage: {round(pred, 2)}%")
-
-        if pred <= 30:
-            print("Anomaly / Fraud Risk: NO\nStatus: ✅ Safe")
-        elif pred <= 60:
-            print("Anomaly / Fraud Risk: YES\nStatus: ⚠️ Suspicious")
+        st.divider()
+        st.subheader(f"Risk Assessment: {risk_score}%")
+        
+        if risk_score <= 30:
+            st.success("✅ Safe (Low Risk) - No Delay Expected")
+        elif risk_score <= 60:
+            st.warning("⚠️ Suspicious (Medium Risk) - Possible Delay")
         else:
-            print("Anomaly / Fraud Risk: YES\nStatus: 🚨 High Risk")
+            st.error("🚨 High Risk (Anomaly Detected) - Delay Likely")
 
-        if pred <= 30:
-            delay_status = "NO DELAY"
-        elif pred <= 60:
-            delay_status = "POSSIBLE DELAY"
-        else:
-            delay_status = "DELAY LIKELY"
-
-        print(f"Delay Status: ⏱️ {delay_status}")
-
-    except ValueError:
-        print("Error: Please enter valid numeric values in all numeric fields.")
+    except Exception as e:
+        st.error(f"Prediction Error: {e}")
