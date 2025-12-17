@@ -4,9 +4,15 @@ import pickle
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
 import numpy as np
+import os
 
 from utils.pdf_report import generate_pdf
 from utils.routes import ROUTE_PROFILES
+
+
+
+
+
 
 # ---------------- CONFIG ----------------
 AVG_SPEED_KMPH = 30
@@ -32,12 +38,23 @@ PORT_COORDS = {
 
 # ---------------- LOAD ML ----------------
 @st.cache_resource
+
+
+@st.cache_resource
 def load_model():
-    with open("models/pipeline.pkl", "rb") as f:
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+
+    pipeline_path = os.path.join(base_dir, "models", "pipeline.pkl")
+    model_path = os.path.join(base_dir, "models", "risk_model.pkl")
+
+    with open(pipeline_path, "rb") as f:
         pipeline = pickle.load(f)
-    with open("models/risk_model.pkl", "rb") as f:
+
+    with open(model_path, "rb") as f:
         model = pickle.load(f)
+
     return pipeline, model
+
 
 pipeline, model = load_model()
 
