@@ -12,7 +12,11 @@ from utils.routes import ROUTE_PROFILES
 AVG_SPEED_KMPH = 30
 COST_PER_KM = 20
 
-st.set_page_config("CargoGuard AI", "🚢", layout="wide")
+st.set_page_config(
+    page_title="CargoGuard AI",
+    page_icon="🚢",
+    layout="wide"
+)
 
 # ---------------- PORT COORDS ----------------
 PORT_COORDS = {
