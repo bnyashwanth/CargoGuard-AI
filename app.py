@@ -20,7 +20,7 @@ import random
 st.set_page_config(page_title="CargoGuard AI | Ultimate", page_icon="🚢", layout="wide")
 
 # REPLACE WITH YOUR MONGO URI
-MONGO_URI = "mongodb+srv://admin:admin123@cluster0.mongodb.net/?retryWrites=true&w=majority" 
+MONGO_URI = "mongodb+srv://Nexen_CargoGuard-AI:nu1CpKr813Oodezn@cluster0.phw7cso.mongodb.net/" 
 DB_NAME = "CargoGuardDB"
 
 @st.cache_resource
@@ -200,11 +200,16 @@ def get_live_weather_sim(port_name):
 def hash_pass(password): return bcrypt.hashpw(password.encode(), bcrypt.gensalt())
 def check_pass(password, hashed): return bcrypt.checkpw(password.encode(), hashed)
 
-def create_user(username, password, name):
+def create_user(username, password):
+    # Auto-assign name = username since we removed the name field
+    name = username 
+    
     db = get_db()
     hashed = hash_pass(password)
     user_data = {"username": username, "password": hashed, "name": name}
-    if db:
+    
+    # FIX: Explicitly check against None
+    if db is not None:
         try:
             if db.users.find_one({"username": username}): return False
             db.users.insert_one(user_data)
@@ -217,7 +222,8 @@ def create_user(username, password, name):
 
 def login_user(username, password):
     db = get_db()
-    if db:
+    # FIX: Explicitly check against None
+    if db is not None:
         try:
             user = db.users.find_one({"username": username})
             if user and check_pass(password, user['password']): return user
@@ -228,7 +234,8 @@ def login_user(username, password):
 
 def save_shipment(data):
     db = get_db()
-    if db:
+    # FIX: Explicitly check against None
+    if db is not None:
         try: db.shipments.insert_one(data); return
         except: pass
     if "_id" not in data: data["_id"] = f"mock_{int(time.time())}"
@@ -236,7 +243,8 @@ def save_shipment(data):
 
 def get_user_shipments(username):
     db = get_db()
-    if db:
+    # FIX: Explicitly check against None
+    if db is not None:
         try: return list(db.shipments.find({"username": username}))
         except: pass
     return [s for s in st.session_state.mock_db["shipments"] if s["username"] == username]
@@ -257,7 +265,8 @@ def preload_hackathon_data(username):
         "status": "Delivered", "start_time": start_date_done, "vessel": "Bulk Carrier", "cargo": "Raw Materials",
         "risk_score": 15.2, "weather": "Clear", "total_days": 18.0, "route_type": "Faster", "cost": 850000
     }
-    if db:
+    # FIX: Explicitly check against None
+    if db is not None:
         try:
             if db.shipments.count_documents({"username": username}) == 0:
                 del data_1['_id']; del data_2['_id']
@@ -376,31 +385,55 @@ if 'selected_shipment' not in st.session_state: st.session_state.selected_shipme
 if 'chat_history' not in st.session_state: st.session_state.chat_history = []
 
 # --- A. LOGIN PAGE ---
+# --- A. LOGIN PAGE ---
+# --- A. LOGIN PAGE ---
 if st.session_state.page == "Login":
     c1, c2, c3 = st.columns([1,2,1])
     with c2:
         st.markdown("<h1 style='text-align: center;'>🚢 CargoGuard AI</h1>", unsafe_allow_html=True)
         st.markdown("<p style='text-align: center; color: gray;'>Enterprise Logistics Intelligence</p>", unsafe_allow_html=True)
-        tab1, tab2 = st.tabs(["Login", "Register"])
-        with tab1:
-            l_user = st.text_input("Username", key="l_u")
-            l_pass = st.text_input("Password", type="password", key="l_p")
-            if st.button("Log In", use_container_width=True):
-                user = login_user(l_user, l_pass)
-                if user:
-                    st.session_state.user = user
-                    preload_hackathon_data(l_user) 
-                    st.session_state.page = "Dashboard"
-                    st.rerun()
-                else: st.error("Invalid credentials")
-        with tab2:
-            r_name = st.text_input("Full Name")
-            r_user = st.text_input("Choose Username")
-            r_pass = st.text_input("Choose Password", type="password")
-            if st.button("Create Account", use_container_width=True):
-                if create_user(r_user, r_pass, r_name): st.success("Account created! Please log in.")
-                else: st.error("Username already exists.")
+        
+        # Connection Status Check
+        if client is None:
+            st.warning("⚠️ Database not connected. Using offline mode.")
 
+        tab1, tab2 = st.tabs(["Login", "Register"])
+        
+        # --- LOGIN TAB (Inside Form) ---
+        with tab1:
+            with st.form("login_form"):
+                l_user = st.text_input("Username", key="l_u")
+                l_pass = st.text_input("Password", type="password", key="l_p")
+                # The script won't reload until this button is clicked
+                login_submitted = st.form_submit_button("Log In", use_container_width=True)
+                
+                if login_submitted:
+                    user = login_user(l_user, l_pass)
+                    if user:
+                        st.session_state.user = user
+                        preload_hackathon_data(l_user) 
+                        st.session_state.page = "Dashboard"
+                        st.rerun()
+                    else: 
+                        st.error("Invalid credentials")
+
+        # --- REGISTER TAB (Inside Form) ---
+        with tab2:
+            with st.form("register_form"):
+                st.write("Create a New Account")
+                r_user = st.text_input("Choose Username")
+                r_pass = st.text_input("Choose Password", type="password")
+                # The script won't reload until this button is clicked
+                reg_submitted = st.form_submit_button("Create Account", use_container_width=True)
+                
+                if reg_submitted:
+                    if r_user and r_pass:
+                        if create_user(r_user, r_pass): 
+                            st.success("Account created! Please log in.")
+                        else: 
+                            st.error("Username already exists or DB Error.")
+                    else:
+                        st.error("Please fill in both fields.")
 # --- B. APP AREA ---
 elif st.session_state.user:
     # SIDEBAR WITH AI CHAT
