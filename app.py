@@ -251,30 +251,41 @@ def get_user_shipments(username):
 
 def preload_hackathon_data(username):
     db = get_db()
-    # High Risk Demo Shipment (Severe Weather)
-    start_date_active = datetime.now() - timedelta(days=5)
+    
+    # 1. Define the Demo Data with the "is_demo" flag
+    # High Risk Demo
     data_1 = {
         "_id": "hackathon_demo_1", "username": username, "origin": "Mumbai Port", "destination": "Rotterdam",
-        "status": "In Transit", "start_time": start_date_active, "vessel": "Container Ship", "cargo": "Electronics",
-        "risk_score": 88.5, "weather": "Severe Storms", "total_days": 22.0, "route_type": "Primary", "cost": 1500000
+        "status": "In Transit", "start_time": datetime.now() - timedelta(days=5), 
+        "vessel": "Container Ship", "cargo": "Electronics",
+        "risk_score": 88.5, "weather": "Severe Storms", "total_days": 22.0, "route_type": "Primary", "cost": 1500000,
+        "is_demo": True # <--- Flag
     }
-    # Low Risk Completed Shipment
-    start_date_done = datetime.now() - timedelta(days=30)
+    
+    # Low Risk Demo
     data_2 = {
         "_id": "hackathon_demo_2", "username": username, "origin": "Shanghai", "destination": "Los Angeles",
-        "status": "Delivered", "start_time": start_date_done, "vessel": "Bulk Carrier", "cargo": "Raw Materials",
-        "risk_score": 15.2, "weather": "Clear", "total_days": 18.0, "route_type": "Faster", "cost": 850000
+        "status": "Delivered", "start_time": datetime.now() - timedelta(days=30), 
+        "vessel": "Bulk Carrier", "cargo": "Raw Materials",
+        "risk_score": 15.2, "weather": "Clear", "total_days": 18.0, "route_type": "Faster", "cost": 850000,
+        "is_demo": True # <--- Flag
     }
-    # FIX: Explicitly check against None
+
+    # 2. FORCE INSERT / UPDATE (The Fix)
     if db is not None:
         try:
-            if db.shipments.count_documents({"username": username}) == 0:
-                del data_1['_id']; del data_2['_id']
-                db.shipments.insert_many([data_1, data_2])
-        except: pass
+            # Upsert: If it exists, update it. If not, insert it.
+            # This ignores whether you have other shipments or not.
+            db.shipments.replace_one({"_id": "hackathon_demo_1"}, data_1, upsert=True)
+            db.shipments.replace_one({"_id": "hackathon_demo_2"}, data_2, upsert=True)
+        except Exception as e:
+            print(f"DB Error: {e}")
     else:
-        existing_ids = [s.get('_id') for s in st.session_state.mock_db["shipments"]]
-        if "hackathon_demo_1" not in existing_ids: st.session_state.mock_db["shipments"].extend([data_1, data_2])
+        # Mock DB Logic (Session State)
+        # Remove old demo versions if they exist
+        st.session_state.mock_db["shipments"] = [s for s in st.session_state.mock_db["shipments"] if s.get('_id') not in ["hackathon_demo_1", "hackathon_demo_2"]]
+        # Add the new ones
+        st.session_state.mock_db["shipments"].extend([data_1, data_2])
 
 # ---------------- 5. REPORT GENERATION ----------------
 def generate_pro_report(voyage_data, risk_score, status_text, financials, iot_data, chain_hash):
@@ -475,16 +486,33 @@ elif st.session_state.user:
             c3.metric("Fleet Health", "98.2%")
             st.subheader("Live Tracking Feed")
             
+            # ... (keep the metric cards code above this) ...
+            
+            
             for i, s in enumerate(shipments):
                 with st.container():
                     col1, col2, col3, col4, col5 = st.columns([2, 2, 2, 2, 2])
+                    
+                    # Logic for progress bar
                     start = s['start_time']; now = datetime.now(); duration = timedelta(days=s['total_days'])
                     elapsed = now - start
                     progress = 1.0 if s['status'] == "Delivered" else min(1.0, elapsed / duration)
                     status_color = "#27ae60" if s['status'] == "Delivered" else "#f39c12"
+                    
+                    # Logic for Display ID and Demo Badge
                     disp_id = str(s.get('_id', f'DEMO-{i}'))[-6:]
                     
-                    with col1: st.write(f"**{s['origin']} ➝ {s['destination']}**"); st.caption(f"ID: {disp_id}")
+                    # CHECK FOR DEMO TAG
+                    if s.get('is_demo', False):
+                        badge_html = f"<span style='background-color:#00BFFF; color:black; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:bold;'>DEMO DATA</span>"
+                    else:
+                        badge_html = ""
+
+                    with col1: 
+                        st.write(f"**{s['origin']} ➝ {s['destination']}**")
+                        # Display ID + Badge
+                        st.markdown(f"<span style='color:gray; font-size:12px;'>ID: {disp_id}</span> {badge_html}", unsafe_allow_html=True)
+                    
                     with col2: st.write(f"📅 Start: {start.strftime('%d %b')}"); st.caption(f"Vessel: {s['vessel']}")
                     with col3: st.write(f"Risk: {s.get('risk_score', 0)}%")
                     with col4: st.markdown(f"<span class='status-badge' style='background:{status_color};color:{'white' if status_color=='#27ae60' else 'black'};'>{s['status']}</span>", unsafe_allow_html=True); st.progress(progress)
