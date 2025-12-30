@@ -1,0 +1,16 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+
+# ML models
+models/
+*.pkl
+*.joblib
+*.h5
+
+# Streamlit
+.streamlit/
+
+# OS
+.DS_Store
